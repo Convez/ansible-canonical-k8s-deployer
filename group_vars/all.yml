@@ -1,0 +1,6 @@
+# Default K8s channel
+k8s_channel: 1.32-classic/stable
+
+# Ubuntu Pro Token (Leave blank or omit to skip)
+# When provided, activates Ubuntu Pro on the inventory
+ubuntu_pro_token: ""

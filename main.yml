@@ -1,0 +1,48 @@
+---
+- name: Validation and Pre-flight Checks
+  hosts: all
+  gather_facts: true
+  run_once: true
+  tasks:
+    - name: Ensure exactly one master is defined
+      ansible.builtin.assert:
+        that:
+          - "groups['master'] | length == 1"
+        fail_msg: "Inventory Error: The [master] group must contain exactly 1 host. Found {{ groups['master'] | length }}."
+        success_msg: "Inventory Validation Passed: 1 master node detected."
+- name: Validation and Pre-flight Checks
+  hosts: all
+  gather_facts: true
+  run_once: false
+  tasks:
+    - name: Sanity Check - Verify Inventory Name matches System Hostname
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == ansible_hostname
+        fail_msg: >
+          Hostname Mismatch! 
+          Inventory name: {{ inventory_hostname }}
+          Actual system hostname: {{ ansible_hostname }}
+          Canonical K8s requires these to match for certificate SAN validation.
+        success_msg: "Hostname validation passed for {{ inventory_hostname }}."
+
+- name: Setup Canonical Kubernetes Cluster
+  hosts: all
+  become: true
+  gather_facts: false
+  roles:
+    - k8s_common
+
+- name: Initialize Master
+  hosts: master
+  become: true
+  gather_facts: false
+  roles:
+    - k8s_master
+
+- name: Join Remaining Nodes
+  hosts: control, worker
+  become: true
+  gather_facts: false
+  roles:
+    - k8s_join

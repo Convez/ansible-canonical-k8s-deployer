@@ -1,0 +1,25 @@
+---
+- name: Check cluster membership
+  command: k8s status
+  register: k8s_status
+  changed_when: false
+  failed_when: false
+  check_mode: no
+
+- name: Join Cluster
+  when: 
+      - k8s_status.rc != 0
+      - "'not part of a Kubernetes cluster' in k8s_status.stderr"
+  block:
+    - name: Verify hostname passing
+      debug:
+        msg: "k8s get-join-token {{ inventory_hostname }} {{ '--worker' if 'worker' in group_names else '' }}"
+      delegate_to: "{{ groups['master'][0] }}"
+    - name: Get join token from master
+      delegate_to: "{{ groups['master'][0] }}"
+      # --worker flag is added if the host is in the 'worker' group
+      command: "k8s get-join-token {{ inventory_hostname }} {{ '--worker' if 'worker' in group_names else '' }}"
+      register: join_token
+
+    - name: Execute join command
+      command: "k8s join-cluster {{ join_token.stdout }}"

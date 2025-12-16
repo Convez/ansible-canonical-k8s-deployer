@@ -1,0 +1,17 @@
+---
+- name: Check cluster membership
+  command: k8s status
+  register: k8s_status
+  changed_when: false
+  failed_when: false
+  check_mode: no
+
+- name: Join Cluster
+  when: k8s_status.rc != 0
+  block:
+    - name: Bootstrap Canonical Kubernetes Master
+      command: k8s bootstrap
+
+    - name: Wait for k8s snap initialization
+      command: k8s status --wait-ready
+      changed_when: false

@@ -1,0 +1,32 @@
+---
+- name: Ubuntu Pro Activation
+  when: 
+    - ubuntu_pro_token is defined 
+    - ubuntu_pro_token | length > 0
+  block:
+    - name: Check if Ubuntu Pro is already attached
+      command: pro status --format json
+      register: pro_status_raw
+      changed_when: false
+
+    - name: Parse Pro status
+      set_fact:
+        pro_status: "{{ pro_status_raw.stdout | from_json }}"
+
+    - name: Attach Ubuntu Pro token
+      command: "pro attach {{ ubuntu_pro_token }}"
+      when: not pro_status.attached
+
+- name: Update and upgrade apt packages
+  changed_when: true
+  apt:
+    upgrade: dist
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install Canonical Kubernetes snap
+  community.general.snap:
+    name: k8s
+    classic: true
+    channel: "{{ k8s_channel }}"
+
