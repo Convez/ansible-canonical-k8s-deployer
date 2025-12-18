@@ -1,0 +1,68 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: vagrant
+  default_box: cloud-image/ubuntu-24.04
+  provider:
+    name: libvirt
+    type: libvirt
+platforms:
+  - name: k8s-master-01
+    memory: 8192
+    cpus: 2
+    interfaces:
+      - auto_config: true
+        network_name: private_network
+        type: static
+        ip: 10.0.0.10
+    groups:
+      - master
+  - name: k8s-control-01
+    memory: 8192
+    cpus: 2
+    interfaces:
+      - auto_config: true
+        network_name: private_network
+        type: static
+        ip: 10.0.0.20
+    groups:
+      - control
+  - name: k8s-control-02
+    memory: 8192
+    cpus: 2
+    interfaces:
+      - auto_config: true
+        network_name: private_network
+        type: static
+        ip: 10.0.0.21
+    groups:
+      - control
+  - name: k8s-worker-01
+    memory: 8192
+    cpus: 2
+    interfaces:
+      - auto_config: true
+        network_name: private_network
+        type: static
+        ip: 10.0.0.30
+    groups:
+      - worker
+  - name: k8s-worker-02
+    memory: 8192
+    cpus: 2
+    interfaces:
+      - auto_config: true
+        network_name: private_network
+        type: static
+        ip: 10.0.0.31
+    groups:
+      - worker
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      interpreter_python: auto_silent
+      host_key_checking: false
+verifier:
+  name: ansible

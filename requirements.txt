@@ -1,0 +1,4 @@
+# Version fixed because of following open issue: https://github.com/ansible-community/molecule-plugins/issues/301
+ansible>11,<12
+molecule==25.1.0
+molecule-plugins==23.7.0

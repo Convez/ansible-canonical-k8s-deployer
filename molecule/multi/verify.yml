@@ -1,0 +1,25 @@
+---
+- name: Verify Master
+  hosts: master
+  become: true
+  tasks:
+    - name: Verify Kubernetes Nodes are Ready
+      command: k8s kubectl get nodes
+      register: kubectl_nodes
+      failed_when: "'Ready' not in kubectl_nodes.stdout"
+
+    - name: Ensure all inventory control nodes are present in the cluster
+      ansible.builtin.assert:
+        that:
+          - "item in kubectl_nodes.stdout"
+        fail_msg: "Control node {{ item }} was not found in 'kubectl get nodes' output."
+        success_msg: "Control node {{ item }} is successfully registered."
+      loop: "{{ groups['control'] }}"
+
+    - name: Ensure all inventory workers are present in the cluster
+      ansible.builtin.assert:
+        that:
+          - "item in kubectl_nodes.stdout"
+        fail_msg: "Worker node {{ item }} was not found in 'kubectl get nodes' output."
+        success_msg: "Worker node {{ item }} is successfully registered."
+      loop: "{{ groups['worker'] }}"

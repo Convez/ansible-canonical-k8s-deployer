@@ -1,0 +1,9 @@
+---
+- name: Verify Master
+  hosts: master
+  become: true
+  tasks:
+    - name: Verify Kubernetes Nodes are Ready
+      command: k8s kubectl get nodes
+      register: kubectl_nodes
+      failed_when: "'Ready' not in kubectl_nodes.stdout"

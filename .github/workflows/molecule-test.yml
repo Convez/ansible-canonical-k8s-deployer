@@ -1,0 +1,92 @@
+name: Molecule Libvirt Test
+on: [push, pull_request]
+
+jobs:
+  list-scenarios:
+    runs-on: ubuntu-latest
+    outputs:
+      scenarios: ${{ steps.set-scenarios.outputs.scenarios }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-scenarios
+        # This find command lists directories in molecule/, basename gets the folder name, 
+        # then jq converts the list into a JSON array ["default", "fail_test", ...]
+        run: |
+          SCENARIOS=$(find molecule -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n")[:-1]')
+          echo "scenarios=$SCENARIOS" >> $GITHUB_OUTPUT
+  molecule:
+    needs: list-scenarios
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: ${{ fromJson(needs.list-scenarios.outputs.scenarios) }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies (Libvirt/QEMU)
+        run: |
+          wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-kvm \
+            libvirt-daemon-system \
+            libvirt-clients \
+            libvirt-dev \
+            bridge-utils\
+            vagrant 
+
+      - name: Setup Libvirt and KVM Permissions
+        run: |
+          # Verify KVM acceleration is available
+          kvm-ok
+          
+          # Add current user to groups
+          sudo usermod -aG libvirt $USER
+          sudo usermod -aG kvm $USER
+          
+          # Start and enable the daemon
+          sudo systemctl enable --now libvirtd
+          
+          # Use newgrp to refresh group membership for the current shell
+          # Note: commands following newgrp in the same 'run' block 
+          # need to be passed via heredoc or script to stay in that subshell
+          newgrp libvirt <<EONG
+          newgrp kvm <<EONK
+          vagrant plugin install vagrant-libvirt
+          EONK
+          EONG
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install molecule molecule-plugins[vagrant] pytest-testinfra
+          pip install -r requirements.txt
+          ansible-galaxy collection install community.molecule community.vagrant community.general
+
+      - name: Run Molecule
+        run: |
+          # Wrapping molecule calls in newgrp to ensure socket access
+          newgrp libvirt <<EONG
+          newgrp kvm <<EONK
+          molecule converge -s ${{ matrix.scenario }}
+          molecule verify -s ${{ matrix.scenario }}
+          EONK
+          EONG
+        env:
+          PY_COLORS: '1'
+          ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Cleanup
+        if: always()
+        run: |
+          newgrp libvirt <<EONG
+          molecule destroy -s ${{ matrix.scenario }}
+          EONG

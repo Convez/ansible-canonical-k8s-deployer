@@ -8,7 +8,7 @@
       supportedArchitectures = [ "x86_64-linux" ];
       forEachArch = f: nixpkgs.lib.genAttrs supportedArchitectures (system: f {
         inherit system;
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
       });
       devShells = forEachArch ({ pkgs, system }: {
         default = pkgs.mkShellNoCC {
@@ -19,7 +19,8 @@
             nixd
             luarocks
             ansible-language-server
-            ansible
+            vagrant
+            python3
           ];
         };
       });
