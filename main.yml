@@ -40,8 +40,16 @@
   roles:
     - k8s_master
 
+- name: Join Control Nodes
+  hosts: control
+  serial: 1
+  become: true
+  gather_facts: false
+  roles:
+    - k8s_join
+
 - name: Join Remaining Nodes
-  hosts: control, worker
+  hosts: worker
   become: true
   gather_facts: false
   roles:
